@@ -1,16 +1,12 @@
-// Observable.java
 package mephi.rxjava;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Consumer;
 
 public class Observable<T> {
-    private Consumer<Observer<T>> onSubscribe;
+    private final Consumer<Observer<T>> onSubscribe;
     private Executor subscribeExecutor = Runnable::run;
     private Executor observeExecutor = Runnable::run;
 
@@ -23,7 +19,7 @@ public class Observable<T> {
     }
 
     public <R> Observable<R> map(Function<T, R> mapper) {
-        return create(observer -> Observable.this.subscribe(new Observer<T>() {
+        return create(observer -> subscribe(new Observer<T>() {
             @Override
             public void onNext(T item) {
                 try {
@@ -47,7 +43,7 @@ public class Observable<T> {
     }
 
     public Observable<T> filter(Predicate<T> predicate) {
-        return create(observer -> Observable.this.subscribe(new Observer<T>() {
+        return create(observer -> subscribe(new Observer<T>() {
             @Override
             public void onNext(T item) {
                 try {
@@ -72,27 +68,11 @@ public class Observable<T> {
     }
 
     public <R> Observable<R> flatMap(Function<T, Observable<R>> mapper) {
-        return create(observer -> Observable.this.subscribe(new Observer<T>() {
+        return create(observer -> subscribe(new Observer<T>() {
             @Override
             public void onNext(T item) {
                 try {
-                    Observable<R> newObservable = mapper.apply(item);
-                    newObservable.subscribe(new Observer<R>() {
-                        @Override
-                        public void onNext(R subItem) {
-                            observer.onNext(subItem);
-                        }
-
-                        @Override
-                        public void onError(Throwable t) {
-                            observer.onError(t);
-                        }
-
-                        @Override
-                        public void onComplete() {
-                            observer.onComplete();
-                        }
-                    });
+                    mapper.apply(item).subscribe(observer);
                 } catch (Throwable t) {
                     observer.onError(t);
                 }
@@ -120,40 +100,36 @@ public class Observable<T> {
         return this;
     }
 
-    public Disposable subscribe(Observer<T> observer) {
-        SimpleDisposable disposable = new SimpleDisposable();
-
+    public void subscribe(Observer<T> observer) {
         subscribeExecutor.execute(() -> {
-            if (!disposable.isDisposed()) {
-                try {
-                    onSubscribe.accept(new Observer<T>() {
-                        @Override
-                        public void onNext(T item) {
-                            if (!disposable.isDisposed()) {
-                                observeExecutor.execute(() -> observer.onNext(item));
-                            }
-                        }
+            final boolean[] terminated = {false};
 
-                        @Override
-                        public void onError(Throwable t) {
-                            if (!disposable.isDisposed()) {
-                                observeExecutor.execute(() -> observer.onError(t));
-                            }
-                        }
-
-                        @Override
-                        public void onComplete() {
-                            if (!disposable.isDisposed()) {
-                                observeExecutor.execute(observer::onComplete);
-                            }
-                        }
-                    });
-                } catch (Throwable t) {
-                    observer.onError(t);
+            Observer<T> safeObserver = new Observer<>() {
+                @Override
+                public void onNext(T item) {
+                    if (!terminated[0]) {
+                        observeExecutor.execute(() -> observer.onNext(item));
+                    }
                 }
-            }
-        });
 
-        return disposable;
+                @Override
+                public void onError(Throwable t) {
+                    if (!terminated[0]) {
+                        terminated[0] = true;
+                        observeExecutor.execute(() -> observer.onError(t));
+                    }
+                }
+
+                @Override
+                public void onComplete() {
+                    if (!terminated[0]) {
+                        terminated[0] = true;
+                        observeExecutor.execute(observer::onComplete);
+                    }
+                }
+            };
+
+            onSubscribe.accept(safeObserver);
+        });
     }
 }

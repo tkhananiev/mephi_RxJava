@@ -2,16 +2,12 @@ package mephi.rxjava;
 
 public class Main {
     public static void main(String[] args) {
+        IOThreadScheduler ioScheduler = new IOThreadScheduler();
+        ComputationScheduler computationScheduler = new ComputationScheduler();
+
         Observable<Integer> observable = Observable.create(emitter -> {
             for (int i = 1; i <= 5; i++) {
                 emitter.onNext(i);
-                try {
-                    Thread.sleep(300);
-                } catch (InterruptedException e) {
-                    emitter.onError(e);
-                    Thread.currentThread().interrupt();
-                    return;
-                }
             }
             emitter.onComplete();
         });
@@ -19,8 +15,8 @@ public class Main {
         observable
                 .map(i -> i * 10)
                 .filter(i -> i % 20 == 0)
-                .subscribeOn(new IOThreadScheduler())
-                .observeOn(new ComputationScheduler())
+                .subscribeOn(ioScheduler)
+                .observeOn(computationScheduler)
                 .subscribe(new Observer<Integer>() {
                     @Override
                     public void onNext(Integer item) {
@@ -38,10 +34,15 @@ public class Main {
                     }
                 });
 
+        // Ждём завершения асинхронных потоков
         try {
             Thread.sleep(3000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+
+        // Завершаем Executor'ы
+        ioScheduler.shutdown();
+        computationScheduler.shutdown();
     }
 }
