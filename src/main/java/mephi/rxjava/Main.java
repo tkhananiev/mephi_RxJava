@@ -1,17 +1,47 @@
 package mephi.rxjava;
 
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Main {
     public static void main(String[] args) {
-        //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-        // to see how IntelliJ IDEA suggests fixing it.
-        System.out.printf("Hello and welcome!");
+        Observable<Integer> observable = Observable.create(emitter -> {
+            for (int i = 1; i <= 5; i++) {
+                emitter.onNext(i);
+                try {
+                    Thread.sleep(300);
+                } catch (InterruptedException e) {
+                    emitter.onError(e);
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+            emitter.onComplete();
+        });
 
-        for (int i = 1; i <= 5; i++) {
-            //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-            // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-            System.out.println("i = " + i);
+        observable
+                .map(i -> i * 10)
+                .filter(i -> i % 20 == 0)
+                .subscribeOn(new IOThreadScheduler())
+                .observeOn(new ComputationScheduler())
+                .subscribe(new Observer<Integer>() {
+                    @Override
+                    public void onNext(Integer item) {
+                        System.out.println("Received: " + item + " on " + Thread.currentThread().getName());
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        System.err.println("Error: " + e.getMessage());
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        System.out.println("Completed on: " + Thread.currentThread().getName());
+                    }
+                });
+
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 }
