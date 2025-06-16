@@ -14,7 +14,7 @@
 
 ## Технологии
 
-* Java 21
+* Java 24
 * JUnit 5
 
 ## Установка и запуск
@@ -157,5 +157,8 @@ observable
 
 Проект реализован в рамках учебного задания МИФИ
 
-Telegram: @yourhandle  
-GitHub: github.com/yourname
+Студент: Хананиев Тимур
+
+Telegram: @tim_khan  
+
+GitHub: https://github.com/tkhananiev
