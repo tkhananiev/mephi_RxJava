@@ -1,4 +1,4 @@
-# SF_RxJava
+# SF\_RxJava
 
 ## Описание проекта
 
@@ -14,7 +14,7 @@
 
 ## Технологии
 
-* Java 24
+* Java 21
 * JUnit 5
 
 ## Установка и запуск
@@ -43,24 +43,39 @@ SF_RxJava/
 ├── src/
 │   ├── main/java/mephi/rxjava/
 │   │   ├── Observable.java
-│   │   ├── Observer.java
-│   │   ├── Disposable.java
-│   │   ├── SimpleDisposable.java
-│   │   ├── Scheduler.java
-│   │   ├── IOThreadScheduler.java
-│   │   ├── ComputationScheduler.java
-│   │   ├── SingleThreadScheduler.java
-│   │   └── Main.java
+│   │   ├── Main.java
+│   │   ├── scheduler/
+│   │   │   ├── Scheduler.java
+│   │   │   ├── IOThreadScheduler.java
+│   │   │   ├── ComputationScheduler.java
+│   │   │   └── SingleThreadScheduler.java
+│   │   ├── core/
+│   │   │   ├── Observer.java
+│   │   │   ├── Disposable.java
+│   │   │   └── SimpleDisposable.java
 │   └── test/java/mephi/rxjava/test/
-│       ├── ObservableTest.java
-│       ├── MapOperatorTest.java
-│       ├── FilterOperatorTest.java
-│       ├── FlatMapOperatorTest.java
-│       ├── SubscribeOnObserveOnTest.java
-│       ├── SchedulerTest.java
-│       ├── DisposableTest.java
-│       ├── ObserverTest.java
-│       └── ErrorHandlingTest.java
+│       └── ... (тесты)
+```
+
+## Схема архитектуры
+
+```plaintext
+Observable.create()
+       │
+       ▼
+    map(x -> ...)
+       │
+       ▼
+   filter(x -> ...)
+       │
+       ▼
+  subscribeOn(Scheduler)
+       │
+       ▼
+  observeOn(Scheduler)
+       │
+       ▼
+     Observer
 ```
 
 ## Тестирование
@@ -68,12 +83,16 @@ SF_RxJava/
 Тестирование покрывает основные аспекты библиотеки:
 
 * **Функциональные операторы:**
-  - `map`, `filter`, `flatMap`
+
+  * `map`, `filter`, `flatMap`
 * **Работа с потоками:**
-  - `subscribeOn`, `observeOn` через `Scheduler`
+
+  * `subscribeOn`, `observeOn` через `Scheduler`
 * **Ошибки и завершение:**
-  - Прекращение потока через `onError`, `onComplete`
-  - Поведение `Disposable`
+
+  * Прекращение потока через `onError`, `onComplete`
+  * Поведение `Disposable`
+  * Обработка ошибок внутри операторов (например, `map(x -> 10 / x)`)
 
 Запуск тестов осуществляется через `mvn test`. В тестах активно используются `AtomicBoolean`, `AtomicReference`, `CountDownLatch` и проверка потоков выполнения.
 
@@ -83,13 +102,14 @@ SF_RxJava/
 
 Библиотека построена вокруг модели реактивного потока:
 
-- `Observable<T>` — создаёт поток событий и управляет цепочкой операторов.
-- `Observer<T>` — подписчик, получающий `onNext`, `onError`, `onComplete`.
-- `Scheduler` — абстракция для планирования выполнения задач (`execute(Runnable)`).
-- Три реализации планировщика:
-  - `IOThreadScheduler` — CachedThreadPool
-  - `ComputationScheduler` — FixedThreadPool
-  - `SingleThreadScheduler` — SingleThreadExecutor
+* `Observable<T>` — создаёт поток событий и управляет цепочкой операторов.
+* `Observer<T>` — подписчик, получающий `onNext`, `onError`, `onComplete`.
+* `Scheduler` — абстракция для планирования выполнения задач (`execute(Runnable)`).
+* Три реализации планировщика:
+
+  * `IOThreadScheduler` — CachedThreadPool
+  * `ComputationScheduler` — FixedThreadPool
+  * `SingleThreadScheduler` — SingleThreadExecutor
 
 Каждый оператор (`map`, `filter`, `flatMap`) возвращает новый `Observable` и не нарушает чистоту потока. Методы `subscribeOn` и `observeOn` обеспечивают смену потока исполнения.
 
@@ -101,9 +121,9 @@ public interface Scheduler {
 }
 ```
 
-- **IOThreadScheduler**: используется для неблокирующих операций, многопоточная очередь.
-- **ComputationScheduler**: используется для CPU-bound операций.
-- **SingleThreadScheduler**: линейное исполнение задач в одном потоке.
+* **IOThreadScheduler**: используется для неблокирующих операций, многопоточная очередь.
+* **ComputationScheduler**: используется для CPU-bound операций.
+* **SingleThreadScheduler**: линейное исполнение задач в одном потоке.
 
 Каждый Scheduler реализует стратегию исполнения с помощью стандартного пула потоков Java.
 
@@ -117,6 +137,7 @@ public interface Scheduler {
 * Обработка ошибок (`onError`)
 * Завершение (`onComplete`)
 * Проверка работоспособности `Disposable`
+* Симуляция исключений в операторах (`ArithmeticException` в `map`)
 
 Для синхронизации и отслеживания состояний применяются `AtomicBoolean`, `AtomicReference` и `CountDownLatch`.
 
@@ -124,15 +145,14 @@ public interface Scheduler {
 
 ```java
 Observable<Integer> observable = Observable.create(emitter -> {
-    for (int i = 1; i <= 5; i++) {
-        emitter.onNext(i);
-    }
+    emitter.onNext(10);
+    emitter.onNext(0); // вызовет ошибку при делении
+    emitter.onNext(5);
     emitter.onComplete();
 });
 
 observable
-    .map(x -> x * 2)
-    .filter(x -> x % 4 == 0)
+    .map(x -> 100 / x) // может выбросить ArithmeticException
     .subscribeOn(new IOThreadScheduler())
     .observeOn(new ComputationScheduler())
     .subscribe(new Observer<Integer>() {
@@ -143,12 +163,12 @@ observable
 
         @Override
         public void onError(Throwable e) {
-            e.printStackTrace();
+            System.err.println("Handled error: " + e.getMessage());
         }
 
         @Override
         public void onComplete() {
-            System.out.println("Done");
+            System.out.println("Stream complete");
         }
     });
 ```
@@ -159,6 +179,6 @@ observable
 
 Студент: Хананиев Тимур
 
-Telegram: @tim_khan  
+Telegram: @tim_khan
 
-GitHub: https://github.com/tkhananiev
+GitHub: [https://github.com/tkhananiev](https://github.com/tkhananiev)
