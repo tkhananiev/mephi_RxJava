@@ -43,18 +43,24 @@ SF_RxJava/
 ├── src/
 │   ├── main/java/mephi/rxjava/
 │   │   ├── Observable.java
+│   │   ├── Observer.java
+│   │   ├── Disposable.java
+│   │   ├── SimpleDisposable.java
+│   │   ├── Scheduler.java
+│   │   ├── IOThreadScheduler.java
+│   │   ├── ComputationScheduler.java
+│   │   ├── SingleThreadScheduler.java
 │   │   ├── Main.java
-│   │   ├── scheduler/
-│   │   │   ├── Scheduler.java
-│   │   │   ├── IOThreadScheduler.java
-│   │   │   ├── ComputationScheduler.java
-│   │   │   └── SingleThreadScheduler.java
-│   │   ├── core/
-│   │   │   ├── Observer.java
-│   │   │   ├── Disposable.java
-│   │   │   └── SimpleDisposable.java
 │   └── test/java/mephi/rxjava/test/
-│       └── ... (тесты)
+│       ├── ObservableTest.java
+│       ├── MapOperatorTest.java
+│       ├── FilterOperatorTest.java
+│       ├── FlatMapOperatorTest.java
+│       ├── SubscribeOnObserveOnTest.java
+│       ├── SchedulerTest.java
+│       ├── DisposableTest.java
+│       ├── ObserverTest.java
+│       └── ErrorHandlingTest.java
 ```
 
 ## Схема архитектуры
@@ -179,6 +185,5 @@ observable
 
 Студент: Хананиев Тимур
 
-Telegram: @tim_khan
-
+Telegram: @tim\_khan
 GitHub: [https://github.com/tkhananiev](https://github.com/tkhananiev)
